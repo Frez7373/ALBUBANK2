@@ -126,6 +126,48 @@ local function changeBalance(aid, amount, mode, description)
     return safeAccount(a)
 end
 
+local function transfer(fromId, toId, amount, description)
+    fromId=tostring(fromId or "")
+    toId=tostring(toId or "")
+    amount=tonumber(amount)
+    if fromId == "" or toId == "" then return nil,"INVALID_ACCOUNT_ID" end
+    if fromId == toId then return nil,"SAME_ACCOUNT" end
+    if not amount or amount <= 0 then return nil,"INVALID_AMOUNT" end
+
+    local from=account(fromId)
+    if not from then return nil,"SOURCE_ACCOUNT_NOT_FOUND" end
+    local to=account(toId)
+    if not to then return nil,"DESTINATION_ACCOUNT_NOT_FOUND" end
+    if from.status ~= "active" or to.status ~= "active" then return nil,"ACCOUNT_BLOCKED" end
+    if from.balance < amount then return nil,"INSUFFICIENT_FUNDS" end
+
+    local beforeFrom=from.balance
+    local beforeTo=to.balance
+    local tnow=now()
+
+    from.balance=from.balance-amount
+    to.balance=to.balance+amount
+    from.updated_at=tnow
+    to.updated_at=tnow
+
+    if not save(accountPath(from.id),from) then return nil,"SOURCE_SAVE_ERROR" end
+    if not save(accountPath(to.id),to) then
+        from.balance=beforeFrom
+        from.updated_at=tnow
+        save(accountPath(from.id),from)
+        return nil,"DESTINATION_SAVE_ERROR"
+    end
+
+    local id=txid()
+    local text=description and tostring(description) or "ATM transfer"
+    if text == "" then text="ATM transfer" end
+
+    appendTx(from.id,{id=id,account_id=from.id,type="transfer",amount=-amount,balance_after=from.balance,currency="USD",counterparty=to.id,description=text,timestamp=tnow})
+    appendTx(to.id,{id=id,account_id=to.id,type="transfer_received",amount=amount,balance_after=to.balance,currency="USD",counterparty=from.id,description=text,timestamp=tnow})
+
+    return {transaction_id=id,amount=amount,from=safeAccount(from),to=safeAccount(to),previous_to_balance=beforeTo}
+end
+
 local function getTransactions(cardId,pin,limit)
     local c,a,err=authenticateCard(cardId,pin)
     if not c then return nil,err end
@@ -178,7 +220,8 @@ local function payment(data)
     from.balance=from.balance-amount
     to.balance=to.balance+amount
     local tnow=now()
-    from.updated_at=tnow to.updated_at=tnow
+    from.updated_at=tnow
+    to.updated_at=tnow
     if not save(accountPath(from.id),from) then return nil,"SOURCE_SAVE_ERROR" end
     if not save(accountPath(to.id),to) then
         from.balance=from.balance+amount
@@ -204,7 +247,13 @@ local function process(m)
     if m.action=="transactions" then local r,e=getTransactions(d.card_id,d.pin,d.limit); return response(id,r~=nil,r,e) end
     if m.action=="deposit" then local r,e=changeBalance(d.account_id,d.amount,"deposit",d.description); return response(id,r~=nil,r,e) end
     if m.action=="withdraw" then local r,e=changeBalance(d.account_id,d.amount,"withdraw",d.description); return response(id,r~=nil,r,e) end
-    if m.action=="set_card_status" then local c=card(d.card_id); if not c then return response(id,false,nil,"CARD_NOT_FOUND") end; if d.status~="active" and d.status~="blocked" then return response(id,false,nil,"INVALID_STATUS") end; c.status=d.status; save(cardPath(c.id),c); return response(id,true,{card_id=c.id,status=c.status}) end
+    if m.action=="transfer" then
+        local c,a,e=authenticateCard(d.card_id,d.pin)
+        if not c then return response(id,false,nil,e) end
+        local r,err=transfer(a.id,d.destination_account_id,d.amount,d.description)
+        return response(id,r~=nil,r,err)
+    end
+    if m.action=="set_card_status" then local c=card(d.card_id); if not c then return response(id,false,nil,"CARD_NOT_FOUND") end; if d.status~="active" and d.status~="blocked" then return response(id,false,nil,"INVALID_STATUS") end; c.status=d.status; if not save(cardPath(c.id),c) then return response(id,false,nil,"CARD_FILE_ERROR") end; return response(id,true,{card_id=c.id,status=c.status}) end
     if m.action=="register_terminal" then local r,e=registerTerminal(d.card_id,d.pin,d.terminal_name); return response(id,r~=nil,r,e) end
     if m.action=="re_register_terminal" then local r,e=registerTerminal(d.owner_card_id,d.owner_pin,d.terminal_name,d.terminal_id); return response(id,r~=nil,r,e) end
     if m.action=="terminal_info" then local t=terminal(d.terminal_id); return response(id,t~=nil,t,t and nil or "TERMINAL_NOT_FOUND") end
