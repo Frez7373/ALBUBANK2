@@ -16,6 +16,7 @@ end
 local function request(action, data, timeout)
     timeout = tonumber(timeout) or TIMEOUT
     local requestId = makeId()
+
     modem.transmit(PORT, PORT, {
         type = "request",
         request_id = requestId,
@@ -24,17 +25,18 @@ local function request(action, data, timeout)
     })
 
     local timer = os.startTimer(timeout)
+
     while true do
-        local event, p1, _, reply, msg = os.pullEvent()
+        local event, side, channel, replyChannel, msg = os.pullEvent()
+
         if event == "modem_message" then
-            local channel = p1
             if channel == PORT and type(msg) == "table" and msg.type == "response" and msg.request_id == requestId then
                 if msg.ok then
                     return true, msg.data, nil
                 end
                 return false, nil, msg.error or "UNKNOWN_ERROR"
             end
-        elseif event == "timer" and p1 == timer then
+        elseif event == "timer" and side == timer then
             return false, nil, "TIMEOUT"
         end
     end
@@ -65,11 +67,13 @@ end
 local function waitForCard(message)
     local drive = peripheral.find("drive")
     if not drive then return nil, "DISK_DRIVE_NOT_FOUND" end
+
     while true do
         printHeader("CARD")
         print(message or "Insert your ALBU bank card.")
         print("")
         print("Waiting for card...")
+
         if drive.isDiskPresent() then
             local mount = drive.getMountPath()
             if mount then
@@ -78,6 +82,7 @@ local function waitForCard(message)
                     local h = fs.open(path, "r")
                     local raw = h and h.readAll() or nil
                     if h then h.close() end
+
                     if raw then
                         local ok, card = pcall(textutils.unserialize, raw)
                         if ok and type(card) == "table" and card.card_id and card.account_id then
@@ -87,6 +92,7 @@ local function waitForCard(message)
                 end
             end
         end
+
         local event, key = os.pullEvent()
         if event == "key" and key == keys.q then
             return nil, "CANCELLED"
