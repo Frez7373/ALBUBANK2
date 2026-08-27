@@ -1,6 +1,6 @@
 -- ALBU BANK INSTALLER
 -- CC:Tweaked / Minecraft 1.16.5
--- Installs the current ALBU BANK components.
+-- Installs the selected ALBU BANK component.
 
 local BASE = "https://raw.githubusercontent.com/Frez7373/ALBUBANK2/main/"
 
@@ -29,6 +29,7 @@ local components = {
         name = "Store Terminal",
         files = {
             {remote = "store_terminal.lua", localPath = "/store_terminal.lua"},
+            {remote = "store_terminal_v2.lua", localPath = "/store_terminal_v2.lua"},
             {remote = "lib/bank_client.lua", localPath = "/lib/bank_client.lua"}
         }
     },
@@ -39,6 +40,7 @@ local components = {
             {remote = "bank_server.lua", localPath = "/bank_server.lua"},
             {remote = "atm.lua", localPath = "/atm.lua"},
             {remote = "store_terminal.lua", localPath = "/store_terminal.lua"},
+            {remote = "store_terminal_v2.lua", localPath = "/store_terminal_v2.lua"},
             {remote = "lib/bank_client.lua", localPath = "/lib/bank_client.lua"}
         }
     }
@@ -68,16 +70,26 @@ end
 
 local function download(remote, localPath)
     if not http then return false, "HTTP API is disabled" end
+
     local url = BASE .. remote .. "?v=" .. tostring(os.epoch("utc"))
     local response, err = http.get(url)
-    if not response then return false, "Download failed: " .. tostring(err or "HTTP error") end
+    if not response then
+        return false, "Download failed: " .. tostring(err or "HTTP error")
+    end
+
     local content = response.readAll()
     response.close()
-    if not content or content == "" then return false, "Downloaded file is empty" end
+
+    if not content or content == "" then
+        return false, "Downloaded file is empty"
+    end
+
     local dir = fs.getDir(localPath)
     if dir and dir ~= "" then fs.makeDir(dir) end
+
     local file = fs.open(localPath, "w")
     if not file then return false, "Cannot write " .. localPath end
+
     file.write(content)
     file.close()
     return true
@@ -86,8 +98,7 @@ end
 local function cleanupOldFiles()
     local old = {
         "/bank_computer_v2.lua",
-        "/bank_server_v2.lua",
-        "/store_terminal_v2.lua"
+        "/bank_server_v2.lua"
     }
     for _, path in ipairs(old) do
         if fs.exists(path) then fs.delete(path) end
@@ -97,12 +108,17 @@ end
 local function install(component)
     header("Installing " .. component.name)
     cleanupOldFiles()
+
     for i, item in ipairs(component.files) do
         print(string.format("[%d/%d] %s", i, #component.files, item.remote))
         local ok, err = download(item.remote, item.localPath)
-        if not ok then print("ERROR: " .. tostring(err)) return false end
+        if not ok then
+            print("ERROR: " .. tostring(err))
+            return false
+        end
         print("OK -> " .. item.localPath)
     end
+
     print("")
     print("Installation complete.")
     return true
@@ -119,8 +135,10 @@ local function main()
         print("6. Exit")
         print("")
         write("> ")
+
         local choice = read()
         local component = components[choice]
+
         if component then
             install(component)
             pause()
