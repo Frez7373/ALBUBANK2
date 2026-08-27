@@ -1,6 +1,6 @@
 -- ALBU BANK INSTALLER
 -- CC:Tweaked / Minecraft 1.16.5
--- Installs exactly the selected component.
+-- Installs the current ALBU BANK components.
 
 local BASE = "https://raw.githubusercontent.com/Frez7373/ALBUBANK2/main/"
 
@@ -16,6 +16,7 @@ local components = {
         name = "Bank Computer",
         files = {
             {remote = "bank_computer.lua", localPath = "/bank_computer.lua"},
+            {remote = "bank_server.lua", localPath = "/bank_server.lua"},
             {remote = "lib/bank_client.lua", localPath = "/lib/bank_client.lua"}
         }
     },
@@ -29,7 +30,6 @@ local components = {
         name = "Store Terminal",
         files = {
             {remote = "store_terminal.lua", localPath = "/store_terminal.lua"},
-            {remote = "store_terminal_v2.lua", localPath = "/store_terminal_v2.lua"},
             {remote = "lib/bank_client.lua", localPath = "/lib/bank_client.lua"}
         }
     },
@@ -86,15 +86,10 @@ local function download(remote, localPath)
     end
 
     local dir = fs.getDir(localPath)
-    if dir and dir ~= "" then
-        fs.makeDir(dir)
-    end
+    if dir and dir ~= "" then fs.makeDir(dir) end
 
     local file = fs.open(localPath, "w")
-    if not file then
-        return false, "Cannot write " .. localPath
-    end
-
+    if not file then return false, "Cannot write " .. localPath end
     file.write(content)
     file.close()
     return true
@@ -107,9 +102,7 @@ local function cleanupOldFiles()
         "/store_terminal_v2.lua"
     }
     for _, path in ipairs(old) do
-        if fs.exists(path) then
-            fs.delete(path)
-        end
+        if fs.exists(path) then fs.delete(path) end
     end
 end
 
@@ -136,7 +129,7 @@ local function main()
     while true do
         header("Select what you want to install")
         print("1. ATM")
-        print("2. Bank Computer")
+        print("2. Bank Computer + Server")
         print("3. Bank Server")
         print("4. Store Terminal")
         print("5. Full Bank Package")
