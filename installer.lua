@@ -16,7 +16,6 @@ local components = {
         name = "Bank Computer",
         files = {
             {remote = "bank_computer.lua", localPath = "/bank_computer.lua"},
-            {remote = "bank_server.lua", localPath = "/bank_server.lua"},
             {remote = "lib/bank_client.lua", localPath = "/lib/bank_client.lua"}
         }
     },
@@ -113,7 +112,7 @@ local function main()
     while true do
         header("Select what you want to install")
         print("1. ATM")
-        print("2. Bank Computer + Server")
+        print("2. Bank Computer")
         print("3. Bank Server")
         print("4. Store Terminal")
         print("5. Full Bank Package")
