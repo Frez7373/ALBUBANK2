@@ -68,26 +68,15 @@ local function pause()
 end
 
 local function download(remote, localPath)
-    if not http then
-        return false, "HTTP API is disabled"
-    end
-
+    if not http then return false, "HTTP API is disabled" end
     local url = BASE .. remote .. "?v=" .. tostring(os.epoch("utc"))
     local response, err = http.get(url)
-    if not response then
-        return false, "Download failed: " .. tostring(err or "HTTP error")
-    end
-
+    if not response then return false, "Download failed: " .. tostring(err or "HTTP error") end
     local content = response.readAll()
     response.close()
-
-    if not content or content == "" then
-        return false, "Downloaded file is empty"
-    end
-
+    if not content or content == "" then return false, "Downloaded file is empty" end
     local dir = fs.getDir(localPath)
     if dir and dir ~= "" then fs.makeDir(dir) end
-
     local file = fs.open(localPath, "w")
     if not file then return false, "Cannot write " .. localPath end
     file.write(content)
@@ -109,17 +98,12 @@ end
 local function install(component)
     header("Installing " .. component.name)
     cleanupOldFiles()
-
     for i, item in ipairs(component.files) do
         print(string.format("[%d/%d] %s", i, #component.files, item.remote))
         local ok, err = download(item.remote, item.localPath)
-        if not ok then
-            print("ERROR: " .. tostring(err))
-            return false
-        end
+        if not ok then print("ERROR: " .. tostring(err)) return false end
         print("OK -> " .. item.localPath)
     end
-
     print("")
     print("Installation complete.")
     return true
@@ -136,10 +120,8 @@ local function main()
         print("6. Exit")
         print("")
         write("> ")
-
         local choice = read()
         local component = components[choice]
-
         if component then
             install(component)
             pause()
