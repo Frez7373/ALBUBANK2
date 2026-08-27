@@ -2,7 +2,7 @@
 -- CC:Tweaked / Minecraft 1.16.5
 -- Installs exactly the selected component.
 
-local BASE = "https://raw.githubusercontent.com/Frez7373/ALBUBANK/main/"
+local BASE = "https://raw.githubusercontent.com/Frez7373/ALBUBANK2/main/"
 
 local components = {
     ["1"] = {
